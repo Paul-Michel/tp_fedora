@@ -1,4 +1,6 @@
+# I. Systemd-basics
 
+## 1. First step
 pstree -p   
 
     systemd(1)─┬─NetworkManager(447)─┬─{NetworkManager}(466)
@@ -28,15 +30,18 @@ pstree -p
            └─systemd-udevd(410)─┬─systemd-udevd(5591)
                                 └─systemd-udevd(5592)
 
+## 2. Gestion du temps
   localtime  = current time zone 
   Universal time  =  Standard time zone 
   RTC = Hardware clock, pile qui garde l'heure même quand le pc est éteins (perte du net ou autre)
 
-    sudo timedatectl set-timezone Europe/Prague
+    
 
-
-
-sudo timedatectl
+> sudo timedatectl set-timezone Europe/Prague
+> 
+> 
+> 
+> sudo timedatectl
 
 
                    Local time: ven. 2019-11-29 14:29:04 CET
@@ -46,12 +51,12 @@ sudo timedatectl
     System clock synchronized: yes
                   NTP service: inactive
               RTC in local TZ: yes
-
+## 3. Gestion de noms
 Static : assigné par l'admin sys et utilisé pour initialisé le kernel pendant le boot, hostname traditionnel de l'user
 Dynamic : assigner par mdns ou dhcp pendant le run time
 Pretty: un hostname sans restriction de charactère non lus par la machine.
 Pour des machines de prod, celui a utilisé et le static.
-
+## 4. Gestion du réseau
     DHCP4.OPTION[1]:                        dhcp_lease_time = 86400
     DHCP4.OPTION[2]:                        dhcp_rebinding_time = 75600
     DHCP4.OPTION[3]:                        dhcp_renewal_time = 43200
@@ -81,22 +86,26 @@ Pour des machines de prod, celui a utilisé et le static.
     DHCP4.OPTION[27]:                       routers = 10.0.2.2
     DHCP4.OPTION[28]:                       subnet_mask = 255.255.255.0
 
-sudo systemctl stop NetworkManager.service
-sudo systemctl disable NetworkManager.service
+Commande a effectuer pour désactiver et stop le service :
+> sudo systemctl stop NetworkManager.service sudo systemctl disable
+> NetworkManager.service
 
     Removed /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service.
     Removed /etc/systemd/system/multi-user.target.wants/NetworkManager.service.
     Removed /etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service.
 
-sudo systemctl start systemd-networkd.service
-sudo systemctl enable systemd-networkd.service
+Commande a effectuer pour lancer et activer le démarrage du service :
+> sudo systemctl start systemd-networkd.service sudo systemctl enable
+> systemd-networkd.service
 
     Created symlink /etc/systemd/system/dbus-org.freedesktop.network1.service → /usr/lib/systemd/system/systemd-networkd.service.
     Created symlink /etc/systemd/system/multi-user.target.wants/systemd-networkd.service → /usr/lib/systemd/system/systemd-networkd.service.
     Created symlink /etc/systemd/system/sockets.target.wants/systemd-networkd.socket → /usr/lib/systemd/system/systemd-networkd.socket.
     Created symlink /etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service → /usr/lib/systemd/system/systemd-networkd-wait-online.service.
  
-<br>
+Edition de la carte réseaux : 
+
+> nano enp0s3.network
 
     [Match]
     Key=enp0s3
@@ -105,14 +114,15 @@ sudo systemctl enable systemd-networkd.service
     Address=10.0.2.15/24
     DNS=1.1.1.1
 
-
-sudo systemctl start systemd-resolved.service
-sudo systemctl enable systemd-resolved.service
+Commande pour activer et démarrer le service :
+> sudo systemctl start systemd-resolved.service sudo systemctl enable
+> systemd-resolved.service
 
     Created symlink /etc/systemd/system/dbus-org.freedesktop.resolve1.service → /usr/lib/systemd/system/systemd-resolved.service.
     Created symlink /etc/systemd/system/multi-user.target.wants/systemd-resolved.service → /usr/lib/systemd/system/systemd-resolved.service.
 
-sudo ss -laputn | grep resolve
+Commande a effectuer pour vérifier que le serveur dns tourne localement :
+> sudo ss -laputn | grep resolve
 
     udp     UNCONN   0        0          127.0.0.53%lo:53            0.0.0.0:*       users:(("systemd-resolve",pid=10989,fd=18))                                    
     udp     UNCONN   0        0                0.0.0.0:5355          0.0.0.0:*       users:(("systemd-resolve",pid=10989,fd=12))                                    
@@ -123,10 +133,9 @@ sudo ss -laputn | grep resolve
     
 Effectuer une commande de résoution de nom avec dig:  
 
-    dig google.com127.0.0.53
-  
-Résultat:  
-dig google.com @127.0.0.53 
+    
+
+> dig google.com127.0.0.53
 
     ; <<>> DiG 9.11.13-RedHat-9.11.13-2.fc31 <<>> google.com @127.0.0.53
     ;; global options: +cmd
@@ -161,31 +170,19 @@ Un lien symbolique pointant vers /run/systemd/resolve/stub-resolv.conf :
   
 Supprimer le fichier : 
 
-    sudo rm -rf /etc/resolv.conf
+   
+
+>  sudo rm -rf /etc/resolv.conf
 
   
   
 Mise en place du lien symbolique :  
 
-    sudo ln -s /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+> sudo ln -s /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+## 6. Gestion d'unité basique
+Pour trouver l'unité associé au processus chronyd
 
-
-dnssec
-sudo cat /etc/systemd/resolved.conf
-
-    [Resolve]
-    DNS=1.1.1.1
-    #FallbackDNS=1.1.1.1 8.8.8.8 1.0.0.1 8.8.4.4 2606:4700:4700::1111 2001:4860:4860::8888 2606:4700:4700::1001 2001:4860:4860::8844
-    #Domains=
-    #LLMNR=yes
-    #MulticastDNS=yes
-    DNSSEC=force
-    DNSOverTLS=yes
-    #Cache=yes
-    #DNSStubListener=yes
-    #ReadEtcHosts=yes
-
-systemctl status 452
+> systemctl status 452
 
     ● chronyd.service - NTP client/server
        Loaded: loaded (/usr/lib/systemd/system/chronyd.service; enabled; vendor preset: enabled)
@@ -200,50 +197,55 @@ systemctl status 452
           CPU: 70ms
        CGroup: /system.slice/chronyd.service
                └─452 /usr/sbin/chronyd
+# II. Boot et Logs
+Commande a réaliser afin de générer un graph de la séquence de boot :
 
- mkdir graphe
-cd graphe
-systemd-analyze plot > graphe.svg
+>  mkdir graphe 
+>  cd graphe 
+>  systemd-analyze plot > graphe.svg
 
 cat graphe.svg | grep "sshd.service"
 
     <text class="right" x="2734.235" y="4614.000">sshd.service (197ms)</text>
 
-cgroups
-Identifier le cgroup utilisé par votre session SSH.
-ps -e -o pid,cmd,cgroup
+# III. Mécanismes manipulés par systemd
+
+Identifier le cgroup utilisé par votre session SSH :
+
+> ps -e -o pid,cmd,cgroup
 
     1464 sshd: vagrant@pts/0         0::/user.slice/user-1000.slice/session-3.scope
 
-
-Résultat:
-cat /proc/1464/cgroup
+> cat /proc/1464/cgroup
 
     0::/user.slice/user-1000.slice/session-3.scope
+Modifier la RAM dédiée a la session utilisateur :
 
-sudo systemctl set-property user-1000.slice MemoryMax=510M
-cat /sys/fs/cgroup/user.slice/user-1000.slice/memory.max
+> sudo systemctl set-property user-1000.slice MemoryMax=510M 
+> cat /sys/fs/cgroup/user.slice/user-1000.slice/memory.max
 
     534773760
 
-sudo systemctl set-property user-1000.slice MemoryMax=512M
-cat /sys/fs/cgroup/user.slice/user-1000.slice/memory.max
+> sudo systemctl set-property user-1000.slice MemoryMax=512M 
+> cat /sys/fs/cgroup/user.slice/user-1000.slice/memory.max
 
     536870912
 
 
-sudo cat /etc/systemd/system.control/user-1000.slice.d/50-MemoryMax.conf
+    
+
+> sudo cat /etc/systemd/system.control/user-1000.slice.d/50-MemoryMax.conf
 
     This is a drop-in unit file extension, created via "systemctl set-property"
     or an equivalent operation. Do not edit.
     [Slice]
     MemoryMax=536870912
 
-d-Bus
-SUPER SAUT
+## 2. D-Bus
+Partie non compris + erreur de d-bus.
 
-Restriction et isolation
-systemctl status run-u51.service
+## 3.Restriction et isolation
+> systemctl status run-u51.service
 
     ● run-u51.service - /bin/bash
        Loaded: loaded (/run/systemd/transient/run-u51.service; transient)
@@ -257,23 +259,23 @@ systemctl status run-u51.service
                ├─5302 /bin/bash
                ├─5320 systemctl status run-u51.service
                └─5321 less
-identifier c group again
+Identifier le cgroup utilisé : 
 
-ps -e -o pid,cmd,cgroup
+> ps -e -o pid,cmd,cgroup
 
        5301 systemd-run --wait -t /bin/ 0::/user.slice/user-1000.slice/session-3.scope
-
-sudo systemd-run -p MemoryMax=512M --wait -t /bin/bash
+Ajouter des restrictions cgroups :
+> sudo systemd-run -p MemoryMax=512M --wait -t /bin/bash
 
     Running as unit: run-u80.service
     Press ^] three times within 1s to disconnect TTY.
-
-sudo systemd-run -p IPAccounting=true --wait -t /bin/bash
+Ajouter un traçage réseaux :
+> sudo systemd-run -p IPAccounting=true --wait -t /bin/bash
 
     Running as unit: run-u84.service
     Press ^] three times within 1s to disconnect TTY.
-
-sudo systemd-run -p IPAddressAllow=192.168.56.0/24 -p IPAddressDeny=any /bin/bash
+Ajout des restrictions réseau : 
+> sudo systemd-run  -p IPAddressAllow=192.168.56.0/24 -p IPAddressDeny=any /bin/bash
 
     Running as unit: run-r012be849185e4319a4cfa74f6cdeea55.service
 
@@ -282,11 +284,16 @@ sudo systemd-run -p IPAddressAllow=192.168.56.0/24 -p IPAddressDeny=any /bin/bas
     --- 192.168.56.0 ping statistics ---
     3 packets transmitted, 0 received, 100% packet loss, time 2080ms
 
-systemd-nspawn, skip ne fonctionne pas 
-sudo systemd-nspawn --ephemeral --private-network -D / bash
+systemd-nspawn ne fonctionnant pas, je n'ai pas pu réaliser cette partie.
+
+> sudo systemd-nspawn --ephemeral --private-network -D / bash
 
     sudo: systemd-nspawn: command not found
-sudo systemctl status auditd.service 
+# IV. Systemd units in-depth
+## 1. Exploration de services existant
+Observer l'unité auditd.service : 
+
+> sudo systemctl status auditd.service
 
     ● auditd.service - Security Auditing Service
        Loaded: loaded (/usr/lib/systemd/system/auditd.service; enabled; vendor preset: enabled)
@@ -302,7 +309,7 @@ sudo systemctl status auditd.service
        CGroup: /system.slice/auditd.service
                └─429 /sbin/auditd
 
-sudo systemctl cat auditd.service
+> sudo systemctl cat auditd.service
 
     # /usr/lib/systemd/system/auditd.service
     [Unit]
@@ -343,8 +350,10 @@ sudo systemctl cat auditd.service
     
     [Install]
     WantedBy=multi-user.target
-sudo touch /etc/systemd/system/test.service
-sudo nano /etc/systemd/system/test.service
+## 2. Création de service simple
+Créer un fichier qui comporte le suffixe service :
+> sudo touch /etc/systemd/system/test.service 
+> sudo nano /etc/systemd/system/test.service
 
     [Unit]
     Description=Le service de test
@@ -361,16 +370,18 @@ sudo nano /etc/systemd/system/test.service
     
     [Install]
     WantedBy=multi-user.target
+Enable le service au démarrage :
 
-sudo systemctl enable test.service
+> sudo systemctl enable test.service
 
     Created symlink /etc/systemd/system/multi-user.target.wants/test.service → /etc/systemd/system/test.service.
 
 cette commande créer un liens symbolique entre le service et les services a lancer au démarrage.
+## 4.Event-based activation
+Installation docker : 
+> yum install docker
 
-La suite zapp
-
-yum install docker
+Faire en sorte que docker démarre tout seul si il est solicité :
 
     # Création d'un fichier .service
     $ sudo vim /etc/systemd/system/docker.service
@@ -388,3 +399,4 @@ yum install docker
     ExecStopPost=/usr/bin/firewall-cmd --remove-port 80/tcp --permanent
     [Install]
     WantedBy=sockets.target
+
