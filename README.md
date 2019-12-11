@@ -210,5 +210,181 @@ cat graphe.svg | grep "sshd.service"
     <text class="right" x="2734.235" y="4614.000">sshd.service (197ms)</text>
 
 cgroups
+Identifier le cgroup utilisé par votre session SSH.
+ps -e -o pid,cmd,cgroup
+
+    1464 sshd: vagrant@pts/0         0::/user.slice/user-1000.slice/session-3.scope
+
+
+Résultat:
+cat /proc/1464/cgroup
+
+    0::/user.slice/user-1000.slice/session-3.scope
+
+sudo systemctl set-property user-1000.slice MemoryMax=510M
+cat /sys/fs/cgroup/user.slice/user-1000.slice/memory.max
+
+    534773760
+
+sudo systemctl set-property user-1000.slice MemoryMax=512M
+cat /sys/fs/cgroup/user.slice/user-1000.slice/memory.max
+
+    536870912
+
+
+sudo cat /etc/systemd/system.control/user-1000.slice.d/50-MemoryMax.conf
+
+    This is a drop-in unit file extension, created via "systemctl set-property"
+    or an equivalent operation. Do not edit.
+    [Slice]
+    MemoryMax=536870912
 
 d-Bus
+SUPER SAUT
+
+Restriction et isolation
+systemctl status run-u51.service
+
+    ● run-u51.service - /bin/bash
+       Loaded: loaded (/run/systemd/transient/run-u51.service; transient)
+    Transient: yes
+       Active: active (running) since Wed 2019-12-11 09:12:22 UTC; 42s ago
+     Main PID: 5302 (bash)
+        Tasks: 3 (limit: 1146)
+       Memory: 2.2M
+          CPU: 62ms
+       CGroup: /system.slice/run-u51.service
+               ├─5302 /bin/bash
+               ├─5320 systemctl status run-u51.service
+               └─5321 less
+identifier c group again
+
+ps -e -o pid,cmd,cgroup
+
+       5301 systemd-run --wait -t /bin/ 0::/user.slice/user-1000.slice/session-3.scope
+
+sudo systemd-run -p MemoryMax=512M --wait -t /bin/bash
+
+    Running as unit: run-u80.service
+    Press ^] three times within 1s to disconnect TTY.
+
+sudo systemd-run -p IPAccounting=true --wait -t /bin/bash
+
+    Running as unit: run-u84.service
+    Press ^] three times within 1s to disconnect TTY.
+
+sudo systemd-run -p IPAddressAllow=192.168.56.0/24 -p IPAddressDeny=any /bin/bash
+
+    Running as unit: run-r012be849185e4319a4cfa74f6cdeea55.service
+
+    PING 192.168.56.0 (192.168.56.0) 56(84) bytes of data.
+    ^C
+    --- 192.168.56.0 ping statistics ---
+    3 packets transmitted, 0 received, 100% packet loss, time 2080ms
+
+systemd-nspawn, skip ne fonctionne pas 
+sudo systemd-nspawn --ephemeral --private-network -D / bash
+
+    sudo: systemd-nspawn: command not found
+sudo systemctl status auditd.service 
+
+    ● auditd.service - Security Auditing Service
+       Loaded: loaded (/usr/lib/systemd/system/auditd.service; enabled; vendor preset: enabled)
+       Active: active (running) since Wed 2019-12-11 08:49:09 UTC; 1h 0min ago
+         Docs: man:auditd(8)
+               https://github.com/linux-audit/audit-documentation
+      Process: 427 ExecStart=/sbin/auditd (code=exited, status=0/SUCCESS)
+      Process: 432 ExecStartPost=/sbin/augenrules --load (code=exited, status=0/SUCCESS)
+     Main PID: 429 (auditd)
+        Tasks: 2 (limit: 1146)
+       Memory: 4.8M
+          CPU: 83ms
+       CGroup: /system.slice/auditd.service
+               └─429 /sbin/auditd
+
+sudo systemctl cat auditd.service
+
+    # /usr/lib/systemd/system/auditd.service
+    [Unit]
+    Description=Security Auditing Service
+    DefaultDependencies=no
+    ## If auditd is sending or recieving remote logging, copy this file to
+    ## /etc/systemd/system/auditd.service and comment out the first After and
+    ## uncomment the second so that network-online.target is part of After.
+    ## then comment the first Before and uncomment the second Before to remove
+    ## sysinit.target from "Before".
+    After=local-fs.target systemd-tmpfiles-setup.service
+    ##After=network-online.target local-fs.target systemd-tmpfiles-setup.service
+    Before=sysinit.target shutdown.target
+    ##Before=shutdown.target
+    Conflicts=shutdown.target
+    RefuseManualStop=yes
+    ConditionKernelCommandLine=!audit=0
+    Documentation=man:auditd(8) https://github.com/linux-audit/audit-documentation
+    
+    [Service]
+    Type=forking
+    PIDFile=/run/auditd.pid
+    ExecStart=/sbin/auditd
+    ## To not use augenrules, copy this file to /etc/systemd/system/auditd.service
+    ## and comment/delete the next line and uncomment the auditctl line.
+    ## NOTE: augenrules expect any rules to be added to /etc/audit/rules.d/
+    ExecStartPost=-/sbin/augenrules --load
+    #ExecStartPost=-/sbin/auditctl -R /etc/audit/audit.rules
+    # By default we don't clear the rules on exit. To enable this, uncomment
+    # the next line after copying the file to /etc/systemd/system/auditd.service
+    #ExecStopPost=/sbin/auditctl -R /etc/audit/audit-stop.rules
+    
+    ### Security Settings ###
+    MemoryDenyWriteExecute=true
+    LockPersonality=true
+    ProtectControlGroups=true
+    ProtectKernelModules=true
+    
+    [Install]
+    WantedBy=multi-user.target
+sudo touch /etc/systemd/system/test.service
+sudo nano /etc/systemd/system/test.service
+
+    [Unit]
+    Description=Le service de test
+    After=network.target
+    StartLimitIntervalSec=0
+    [Service]
+    Type=simple
+    Restart=always
+    RestartSec=1
+    User=vagrant
+    ExecStart=la commande pour lancer le serveur web 
+    ExecStartPre=/usr/bin/firewall-cmd --add-port 80/tcp`
+    ExecStopPost=/usr/bin/firewall-cmd --remove-port 80/tcp`
+    
+    [Install]
+    WantedBy=multi-user.target
+
+sudo systemctl enable test.service
+
+    Created symlink /etc/systemd/system/multi-user.target.wants/test.service → /etc/systemd/system/test.service.
+
+cette commande créer un liens symbolique entre le service et les services a lancer au démarrage.
+
+La suite zapp
+
+yum install docker
+
+    # Création d'un fichier .service
+    $ sudo vim /etc/systemd/system/docker.service
+    # Création d'un fichier .socket correspondant
+    $ sudo vim /etc/systemd/system/docker.socket
+    # Syntaxe du fichier
+    $ cat /etc/systemd/system/dock.socket
+    [Unit]
+    Description=docker socket
+    [Socket]
+    ListenStream=0.0.0.0:80
+    ExecStartPre=/usr/bin/firewall-cmd --add-port 80/tcp
+    ExecStartPre=/usr/bin/firewall-cmd --add-port 80/tcp --permanent
+    ExecStopPost=/usr/bin/firewall-cmd --remove-port 80/tcp
+    ExecStopPost=/usr/bin/firewall-cmd --remove-port 80/tcp --permanent
+    [Install]
+    WantedBy=sockets.target
